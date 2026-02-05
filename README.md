@@ -173,9 +173,9 @@ Features:
 
 ## Team Alpha
 JCDSOLSK-003 – Purwadhika Digital Technology School
-Ardhian Dewagupta Pratama
-Cakraningrat Kencana Murti
-Priadi Jatmiko
+- Ardhian Dewagupta Pratama
+- Cakraningrat Kencana Murti
+- Priadi Jatmiko
 
 ---
 
