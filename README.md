@@ -27,28 +27,6 @@ The project covers:
 
 ---
 
-## Project Structure
-JCDSOLSK-003_Alpha/
-│
-├── notebooks/
-│ └── final_notebook.ipynb
-│
-├── data/
-│ └── ecommerce_churn.xlsx
-│
-├── streamlit_app/
-│ ├── app.py
-│ ├── model.joblib
-│ └── requirements.txt
-│
-├── tableau/
-│ └── churn_dashboard.twbx
-│
-└── README.md
-
-
----
-
 ## Methodology
 
 ### 1. Exploratory Data Analysis (EDA)
