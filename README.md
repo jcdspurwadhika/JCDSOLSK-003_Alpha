@@ -87,7 +87,7 @@ Best approach selected based on cross-validated F1-score.
 
 ---
 
-## 📊 Final Model Performance (Test Set)
+## Final Model Performance (Test Set)
 
 - Recall (Churn): 96%  
 - Precision (Churn): 99%  
@@ -103,7 +103,7 @@ Confusion Matrix:
 
 ---
 
-## 💰 Business Impact Simulation
+## Business Impact Simulation
 
 Assumptions:
 - Total customers: 1,126  
