@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 import pandas as pd
+import shap
 
 # -------------------------------------------------
 # Page Configuration
@@ -15,6 +16,9 @@ st.set_page_config(
 # -------------------------------------------------
 with open("model.pkl", "rb") as f:
     model = pickle.load(f)
+
+xgb_model = model.named_steps["model"]
+explainer = shap.TreeExplainer(xgb_model)
 
 # -------------------------------------------------
 # Header
@@ -32,98 +36,53 @@ st.markdown(
 st.divider()
 
 # -------------------------------------------------
-# Sidebar - Customer Profile
+# Sidebar - Grouped Inputs
 # -------------------------------------------------
-st.sidebar.header("Customer Profile")
+st.sidebar.header("Customer Inputs")
 
-PreferredLoginDevice = st.sidebar.selectbox(
-    "Preferred Login Device",
-    ["Mobile Phone", "Computer"]
-)
+with st.sidebar.expander("Demographics", expanded=True):
+    Gender = st.selectbox("Gender", ["Male", "Female"])
+    MaritalStatus = st.selectbox("Marital Status", ["Single", "Married"])
+    CityTier = st.selectbox("City Tier", [1, 2, 3])
 
-PreferredPaymentMode = st.sidebar.selectbox(
-    "Preferred Payment Method",
-    ["Debit Card", "Credit Card", "UPI", "E-wallet", "Cash on Delivery"]
-)
+with st.sidebar.expander("Preferences"):
+    PreferredLoginDevice = st.selectbox(
+        "Preferred Login Device",
+        ["Mobile Phone", "Computer"]
+    )
 
-Gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
+    PreferredPaymentMode = st.selectbox(
+        "Preferred Payment Method",
+        ["Debit Card", "Credit Card", "UPI", "E-wallet", "Cash on Delivery"]
+    )
 
-PreferedOrderCat = st.sidebar.selectbox(
-    "Preferred Product Category",
-    ["Laptop & Accessory", "Mobile Phone", "Fashion", "Grocery"]
-)
+    PreferedOrderCat = st.selectbox(
+        "Preferred Product Category",
+        ["Laptop & Accessory", "Mobile Phone", "Fashion", "Grocery"]
+    )
 
-MaritalStatus = st.sidebar.selectbox(
-    "Marital Status",
-    ["Single", "Married"]
-)
+with st.sidebar.expander("Usage & Transactions"):
+    Tenure = st.number_input("Customer Tenure (months)", min_value=0)
+    WarehouseToHome = st.number_input("Distance from Warehouse to Home", min_value=0)
+    HourSpendOnApp = st.number_input("Avg Hours Spent on App per Day", min_value=0)
+    NumberOfDeviceRegistered = st.number_input("Registered Devices", min_value=1)
+    NumberOfAddress = st.number_input("Registered Addresses", min_value=1)
+    OrderAmountHikeFromlastYear = st.number_input("Order Amount Increase (%)", min_value=0)
+    CouponUsed = st.number_input("Coupons Used", min_value=0)
+    OrderCount = st.number_input("Total Orders", min_value=0)
+    DaySinceLastOrder = st.number_input("Days Since Last Order", min_value=0)
+    CashbackAmount = st.number_input("Total Cashback Amount", min_value=0)
 
-st.sidebar.subheader("Usage & Transaction Information")
+with st.sidebar.expander("Satisfaction"):
+    SatisfactionScore = st.slider(
+        "Customer Satisfaction (1 = Very Low, 5 = Very High)",
+        1, 5
+    )
 
-Tenure = st.sidebar.number_input(
-    "Customer Tenure (months)",
-    min_value=0
-)
-
-CityTier = st.sidebar.selectbox(
-    "City Tier",
-    [1, 2, 3]
-)
-
-WarehouseToHome = st.sidebar.number_input(
-    "Distance from Warehouse to Home",
-    min_value=0
-)
-
-HourSpendOnApp = st.sidebar.number_input(
-    "Average Hours Spent on App per Day",
-    min_value=0
-)
-
-NumberOfDeviceRegistered = st.sidebar.number_input(
-    "Number of Registered Devices",
-    min_value=1
-)
-
-SatisfactionScore = st.sidebar.slider(
-    "Customer Satisfaction Score (1 = Very Low, 5 = Very High)",
-    1, 5
-)
-
-NumberOfAddress = st.sidebar.number_input(
-    "Number of Registered Addresses",
-    min_value=1
-)
-
-Complain_text = st.sidebar.selectbox(
-    "Has the customer ever submitted a complaint?",
-    ["No", "Yes"]
-)
-
-OrderAmountHikeFromlastYear = st.sidebar.number_input(
-    "Order Amount Increase Compared to Last Year (%)",
-    min_value=0
-)
-
-CouponUsed = st.sidebar.number_input(
-    "Number of Coupons Used",
-    min_value=0
-)
-
-OrderCount = st.sidebar.number_input(
-    "Total Number of Orders",
-    min_value=0
-)
-
-DaySinceLastOrder = st.sidebar.number_input(
-    "Days Since Last Order",
-    min_value=0
-)
-
-CashbackAmount = st.sidebar.number_input(
-    "Total Cashback Amount",
-    min_value=0
-)
+    Complain_text = st.selectbox(
+        "Ever submitted complaint?",
+        ["No", "Yes"]
+    )
 
 # -------------------------------------------------
 # Convert Friendly Inputs
@@ -138,7 +97,7 @@ col1, col2 = st.columns([2, 1])
 
 with col1:
     st.subheader("Prediction Result")
-    st.write("Click the button to generate churn prediction")
+    st.write("Click the button below to generate churn prediction.")
 
 with col2:
     predict_btn = st.button("Run Prediction", use_container_width=True)
@@ -169,7 +128,6 @@ if predict_btn:
         "CashbackAmount": [CashbackAmount]
     })
 
-    # Probability-based prediction
     proba = model.predict_proba(input_df)[0][1]
     prediction = 1 if proba >= 0.35 else 0
 
@@ -177,21 +135,82 @@ if predict_btn:
     st.write(f"Churn Probability: {proba:.2%}")
 
     if prediction == 1:
-        st.error("High risk: Customer is likely to churn.")
-        st.write("Recommended action: Provide retention offer or personalized promotion.")
+        st.error("**HIGH RISK** — Customer is likely to churn.")
     else:
-        st.success("Low risk: Customer is likely to stay.")
-        st.write("Recommended action: Maintain engagement and loyalty program.")
+        st.success("**LOW RISK** — Customer is likely to stay.")
+
+    # -------------------------------------------------
+    # Top Contributing Factors (SHAP - Text)
+    # -------------------------------------------------
+    st.subheader("Top Contributing Factors")
+
+    feature_mapping = {
+        "SatisfactionScore": "Customer satisfaction",
+        "Tenure": "Customer tenure",
+        "DaySinceLastOrder": "Time since last order",
+        "Complain": "History of complaints",
+        "WarehouseToHome": "Distance from warehouse to home",
+        "HourSpendOnApp": "Average hours spent on app",
+        "NumberOfDeviceRegistered": "Number of registered devices",
+        "NumberOfAddress": "Number of registered addresses",
+        "OrderAmountHikeFromlastYear": "Order amount increase from last year",
+        "CouponUsed": "Number of coupons used",
+        "OrderCount": "Total number of orders",
+        "CashbackAmount": "Total cashback amount",
+        "CityTier": "City tier",
+        "PreferredLoginDevice": "Preferred login device",
+        "PreferredPaymentMode": "Preferred payment method",
+        "PreferedOrderCat": "Preferred product category",
+        "Gender": "Gender",
+        "MaritalStatus": "Marital status"
+    }
+
+    X_transformed = model.named_steps["preprocessor"].transform(input_df)
+    shap_values = explainer.shap_values(X_transformed)
+    feature_names = model.named_steps["preprocessor"].get_feature_names_out()
+
+    shap_df = pd.DataFrame({
+        "feature": feature_names,
+        "impact": shap_values[0]
+    })
+
+    shap_df["abs_impact"] = shap_df["impact"].abs()
+    top_features = shap_df.sort_values("abs_impact", ascending=False).head(5)
+
+    for _, row in top_features.iterrows():
+
+        raw_feature = row["feature"]
+
+        # Remove transformer prefix
+        if "__" in raw_feature:
+            cleaned = raw_feature.split("__")[1]
+        else:
+            cleaned = raw_feature
+
+        # Handle one-hot encoded categorical
+        base_feature = cleaned.split("_")[0]
+
+        friendly_name = feature_mapping.get(
+            base_feature,
+            base_feature
+        )
+
+        direction = (
+            "increased churn risk"
+            if row["impact"] > 0
+            else "reduced churn risk"
+        )
+
+        st.write(f"- {friendly_name} {direction}")
 
 # -------------------------------------------------
-# Batch Prediction via CSV Upload
+# Batch Prediction
 # -------------------------------------------------
 st.divider()
 st.subheader("Batch Prediction (Upload CSV)")
 
-
 uploaded_file = st.file_uploader(
-    "Upload CSV file for batch churn prediction",
+    "Upload CSV file",
     type=["csv"]
 )
 
@@ -209,10 +228,8 @@ if uploaded_file is not None:
         df_batch["churn_probability"] = probas
         df_batch["churn_flag"] = ["Churn" if p == 1 else "Non-Churn" for p in preds]
 
-
         st.success("Batch prediction completed.")
 
-        st.write("Preview result:")
         st.dataframe(df_batch, height=300)
 
         csv_result = df_batch.to_csv(index=False).encode("utf-8")
